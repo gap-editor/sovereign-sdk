@@ -374,8 +374,8 @@ macro_rules! blanket_impl_metered_state_reader {
                     {
                         let deserialization_duration = deserialization_start.elapsed();
                         self.metrics().add_deserialize_metric(
-                            storage_key.key(),
-                            storage_key.display_fn(),
+                            Default::default(),
+                            None,
                             storage_value.size(),
                             deserialization_duration,
                         );
@@ -396,22 +396,10 @@ impl<T: ProvableStateReader<User> + StateMetricsProvider> StateReader<User> for 
     blanket_impl_metered_state_reader!(User);
 }
 
-#[cfg(feature = "expensive-observability")]
-fn state_access_metric_read(key: &SlotKey) -> StateAccessMetric {
-    StateAccessMetric::new_read(key.key(), key.display_fn())
-}
 
-#[cfg(not(feature = "expensive-observability"))]
 fn state_access_metric_read(_key: &SlotKey) -> StateAccessMetric {
     StateAccessMetric::new_read(Default::default(), None)
 }
-
-#[cfg(feature = "expensive-observability")]
-fn state_access_metric_size(key: &SlotKey) -> StateAccessMetric {
-    StateAccessMetric::new_size(key.key(), key.display_fn())
-}
-
-#[cfg(not(feature = "expensive-observability"))]
 fn state_access_metric_size(_key: &SlotKey) -> StateAccessMetric {
     StateAccessMetric::new_size(Default::default(), None)
 }
@@ -446,8 +434,8 @@ impl<T: AccessoryStateReader + StateMetricsProvider> StateReader<Accessory> for 
             {
                 let deserialization_duration = deserialization_start.elapsed();
                 self.metrics().add_deserialize_metric(
-                    storage_key.key(),
-                    storage_key.display_fn(),
+                    Default::default(),
+                    None,
                     storage_value.size(),
                     deserialization_duration,
                 );
@@ -597,7 +585,7 @@ fn charge_storage_access<Accessor: UniversalStateAccessor + GasMeter>(
     })?;
 
     let key_size: u32 = key
-        .size()
+        .len()
         .try_into()
         .map_err(|e: TryFromIntError| GasMeteringError::Overflow(e.to_string()))?;
 
