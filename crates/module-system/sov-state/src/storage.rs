@@ -8,7 +8,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use derivative::Derivative;
 use jmt::KeyHash;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 #[cfg(feature = "native")]
 use sov_rollup_interface::common::{RollupHeight, SlotNumber};
 use sov_rollup_interface::reexports::digest::{typenum, Digest};
@@ -29,18 +29,180 @@ use crate::{
 
 /// The key type suitable for use in [`Storage::get`] and other getter methods of
 /// [`Storage`]. Cheaply-clonable.
-#[serde_as]
 #[derive(
     Derivative, Serialize, serde::Deserialize, BorshDeserialize, BorshSerialize, UniversalWallet,
 )]
 #[derivative(Clone, PartialEq, Eq, Debug, Hash, Ord)]
-#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary, proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct SlotKey {
     // // TODO: Handle extra long keys
     // pub(crate) prefix: Prefix,
-    #[serde_as(as = "Bytes")]
-    pub(crate) key: [u8; 82],
+    pub(crate) key: KeyContents,
 }
+
+/// A logical key consists of [module_tag, item_tag, serialized_key]
+/// We have two different *physical* representations of the key in memory. 
+///    If serialized_key length is less than 79 bytes, we store the key inline.
+///    With the representation length_bytes || module_tag || item_tag || serialized_key.
+///       AsRef<[u8]> returns module_tag || item_tag || serialized_key
+/// 
+///    If the serialized_key length is greater than 79 bytes, we store the key as Vec<u8> containing [module_tag, item_tag, serialized_key].
+/// 
+/// When we store a slot key on disk, we store the physical representation
+#[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, UniversalWallet, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+enum KeyContents {
+    /// A key layed out as follows: 
+    /// [len_byte, module_tag, item_tag, key_bytes]
+    Inline(
+        private::InlineKey),
+    /// A key layed out as follows: 
+    Reference(Arc<Vec<u8>>),
+}
+
+
+mod private {
+    use serde::{Serialize, Deserialize};
+    use borsh::{BorshSerialize, BorshDeserialize};
+    use serde_with::{serde_as, Bytes};
+    use sov_rollup_interface::sov_universal_wallet::UniversalWallet;
+
+    use crate::Prefix;
+
+    /// The total number of bytes in an inline key
+    const INLINE_KEY_BYTES: usize = 82;
+    /// The number of bytes in the metadata of an inline key
+    const INLINE_KEY_METADATA_BYTES: usize = 3;
+    /// The maximum length of key material (excluding prefix) that can be stored in an inline key
+    const MAX_INLINE_KEY_LEN: usize = INLINE_KEY_BYTES - INLINE_KEY_METADATA_BYTES;
+
+
+    const MODULE_TAG_OFFSET: usize = 1;
+    const ITEM_TAG_OFFSET: usize = 2;
+
+    #[serde_as]
+    #[derive(Serialize, Deserialize, BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Debug, Hash, Ord, PartialOrd, UniversalWallet)]
+    pub(super) struct InlineKey(
+    #[serde_as(as = "Bytes")]
+    /// Layout: [len_byte, module_tag, item_tag, key_bytes]
+    [u8;INLINE_KEY_BYTES]);
+
+    #[derive(Debug, PartialEq, Eq)]
+    pub(super) struct ErrOutOfSpace;
+
+    fn offset(idx: usize) -> usize {
+        3 + idx
+    }
+
+    impl InlineKey {
+        /// By definition, the length of the key is the first byte
+        pub(super) fn len_excluding_prefix(&self) -> usize {
+            self.0[0] as usize
+        }
+
+        #[cfg(test)]
+        pub(super) fn module_tag(&self) -> u8 {
+            self.0[MODULE_TAG_OFFSET]
+        }
+
+        #[cfg(test)]
+        pub(super) fn item_tag(&self) -> u8 {
+            self.0[ITEM_TAG_OFFSET]
+        }
+
+        pub(super) fn without_prefix(&self) -> &[u8] {
+            &self.0[offset(0)..offset(self.len_excluding_prefix())]
+        }
+
+        pub(super) fn with_prefix(&self) -> &[u8] {
+            &self.0[1..offset(self.len_excluding_prefix())]
+        }
+
+        pub fn try_extend(&mut self, other: &[u8]) -> Result<(), ErrOutOfSpace> {
+            let original_len = self.len_excluding_prefix();
+            let new_len = original_len.checked_add(other.len()).ok_or(ErrOutOfSpace)?;
+            if new_len > MAX_INLINE_KEY_LEN {
+                return Err(ErrOutOfSpace);
+            }
+            self.0[0] = new_len.try_into().expect("Overflow checking length - this should be unreachable since we've already checked the length");
+            self.0[offset(original_len)..offset(new_len)].copy_from_slice(other);
+            Ok(())
+        }
+
+        pub fn try_from_prefix_and_key(prefix: Prefix, key: &[u8]) -> Result<Self, ErrOutOfSpace> {
+            if key.len() > MAX_INLINE_KEY_LEN {
+                return Err(ErrOutOfSpace);
+            }
+            let mut output = Self([0u8; INLINE_KEY_BYTES]);
+            output.0[MODULE_TAG_OFFSET] = prefix.module;
+            output.0[ITEM_TAG_OFFSET] = prefix.item;
+            output.try_extend(key)?;
+            Ok(output)
+        }
+    }
+
+    #[cfg(feature = "arbitrary")]
+    impl arbitrary::Arbitrary<'_> for InlineKey {
+        fn arbitrary(u: &mut arbitrary::Unstructured) -> arbitrary::Result<Self> {
+            let len = u.int_in_range(0..=MAX_INLINE_KEY_LEN)?;
+            let key = u.bytes(len)?;
+            Ok(Self::try_from_prefix_and_key(Prefix::new(0, 0), &key).unwrap())
+        }
+    }
+
+
+
+    #[test]
+    fn test_inline_key_extend() {
+        let mut key = InlineKey([0u8; INLINE_KEY_BYTES]);
+        key.try_extend(&[1, 2, 3]).unwrap();
+        assert_eq!(key.len_excluding_prefix(), 3);
+        assert_eq!(key.without_prefix(), &[1, 2, 3]);
+        assert_eq!(key.module_tag(), 0);
+        assert_eq!(key.item_tag(), 0);
+        assert_eq!(key.0[..6], [3, 0, 0, 1, 2, 3]);
+
+        key.try_extend(&[4, 5, 6]).unwrap();
+        assert_eq!(key.len_excluding_prefix(), 6);
+        assert_eq!(key.without_prefix(), &[1, 2, 3, 4, 5, 6]);
+        assert_eq!(key.module_tag(), 0);
+        assert_eq!(key.item_tag(), 0);
+        assert_eq!(key.0[..9], [6, 0, 0, 1, 2, 3, 4, 5, 6]);
+
+        assert!(key.try_extend(&[1;74]).is_err());
+        assert_eq!(key.len_excluding_prefix(), 6);
+        assert_eq!(key.0[..9], [6, 0, 0, 1, 2, 3, 4, 5, 6]);
+
+        assert!(key.try_extend(&[1;73]).is_ok());
+        assert_eq!(key.len_excluding_prefix(), 79);
+        assert_eq!(key.0[..9], [79, 0, 0, 1, 2, 3, 4, 5, 6]);
+        assert_eq!(&key.without_prefix()[6..], &[1;73]);
+    }
+
+
+}
+
+
+// impl serde::Serialize for KeyContents {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: serde::Serializer,
+//     {
+//         // serializer.serialize_newtype_variant("KeyContents", self.0, self.1)
+//     }
+// }
+
+// impl<'de> serde::Deserialize<'de> for KeyContents {
+
+// impl std::io::Write for SlotKey {
+//     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+//         self.key.write(buf)
+//     }
+
+//     fn flush(&mut self) -> std::io::Result<()> {
+//         Ok(())
+//     }
+// }
 
 // impl<'a> arbitrary::Arbitrary<'a> for SlotKey {
 //     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
@@ -68,51 +230,38 @@ impl PartialOrd for SlotKey {
 }
 
 impl SlotKey {
-    /// Returns a new [`Arc`] reference to the bytes of this key.
+    /// Returns a new [`Arc`] reference to the bytes of this key excluding the prefix.
     pub fn without_prefix(&self) -> &[u8] {
-        &self.key[2..]
+        match &self.key {
+            KeyContents::Inline(key) => key.without_prefix(),
+            KeyContents::Reference(key) => &key.as_ref()[2..],
+        }
     }
 
-    /// Returns the length of the key.
+    /// Returns a new [`Arc`] reference to the bytes of this key including the prefix
+    pub fn with_prefix(&self) -> &[u8] {
+        match &self.key {
+            KeyContents::Inline(key) => &key.with_prefix(),
+            KeyContents::Reference(key) => &key.as_ref()[..],
+        }
+    }
+
+    /// Returns the length of the key including the prefix.
     pub fn len(&self) -> usize {
-        self.key.len()
+        match &self.key {
+            KeyContents::Inline(key) => key.len_excluding_prefix() + 2,
+            KeyContents::Reference(key) => key.len(),
+        }
     }
 
     /// Craetes a test key with the given byte.
     pub fn test_key(byte: u8) -> Self {
         Self {
-            key: [byte; 82],
+            key: KeyContents::Inline(private::InlineKey::try_from_prefix_and_key(Prefix::new(byte, byte), &[byte]).unwrap()),
         }
     }
 }
 
-// impl SlotKey {
-//     /// Returns a new [`Arc`] reference to the bytes of this key.
-//     pub fn key(&self) -> Arc<Vec<u8>> {
-//         self.key.clone()
-//     }
-
-//     /// Returns a new [`Arc`] reference to the bytes of this key.
-//     pub fn key_ref(&self) -> &Vec<u8> {
-//         self.key.as_ref()
-//     }
-
-//     /// Returns the size of the key.
-//     pub fn size(&self) -> usize {
-//         self.key.len()
-//     }
-
-//     /// Returns the display function for this key.
-//     pub fn display_fn(&self) -> Option<ArcFormatFn> {
-//         self.display_fn.clone()
-//     }
-// }
-
-// impl AsRef<Vec<u8>> for SlotKey {
-//     fn as_ref(&self) -> &Vec<u8> {
-//         &self.key
-//     }
-// }
 
 impl fmt::Display for SlotKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -121,13 +270,57 @@ impl fmt::Display for SlotKey {
         // } else {
         //     write!(f, "{}", String::from_utf8_lossy(self.key().as_ref()))
         // }
-        write!(f, "{}/{}", self.key[0], hex::encode(&self.key[1..]))
+        let key:&[u8] = self.as_ref();
+        write!(f, "{}", hex::encode(key))
     }
 }
 
 impl AsRef<[u8]> for SlotKey {
     fn as_ref(&self) -> &[u8] {
-        &self.key
+        match &self.key {
+            KeyContents::Inline(key) => key.with_prefix(),
+            KeyContents::Reference(key) => key.as_ref(),
+        }
+    }
+}
+
+enum SlotKeyBuilder {
+    Inline(private::InlineKey),
+    Reference(Vec<u8>),
+}
+
+impl From<SlotKeyBuilder> for KeyContents {
+    fn from(builder: SlotKeyBuilder) -> Self {
+        match builder {
+            SlotKeyBuilder::Inline(key) => KeyContents::Inline(key),
+            SlotKeyBuilder::Reference(key) => KeyContents::Reference(Arc::new(key)),
+        }
+    }
+}
+
+impl SlotKeyBuilder {
+    pub fn with_prefix(prefix: Prefix) -> Self {
+        Self::Inline(private::InlineKey::try_from_prefix_and_key(prefix, &[]).unwrap())
+    }
+}
+
+impl std::io::Write for SlotKeyBuilder {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match self {
+            SlotKeyBuilder::Inline(key) => if key.try_extend(buf).is_err() {
+                let mut new_key = Vec::with_capacity(key.len_excluding_prefix() + buf.len() + 2);
+                new_key.extend(key.with_prefix());
+                new_key.extend(buf);
+                *self = SlotKeyBuilder::Reference(new_key);
+            }
+            SlotKeyBuilder::Reference(key) => {key.write(buf)?;},
+        };
+
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
     }
 }
 
@@ -139,13 +332,10 @@ impl SlotKey {
         K: fmt::Display,
         Q: ?Sized,
     {
-        let mut encoded = [0u8; 82];
-        encoded[0] = prefix.module;
-        encoded[1] = prefix.item;
-        let mut cursor = std::io::Cursor::new(&mut encoded[2..]);
-        codec.encode_like(key, &mut cursor);
+        let mut builder = SlotKeyBuilder::with_prefix(*prefix);
+        codec.encode_like(key, &mut builder);
         Self {
-            key: encoded,
+            key: builder.into(),
         }
         // let encoded_key = codec.encode_like(key);
         // wt
@@ -176,26 +366,29 @@ impl SlotKey {
     /// Used only in tests.
     /// Builds a storage key from a byte slice
     pub fn from_slice(key: &[u8]) -> Self {
-        if key.len() > 82 {
-            panic!("Key length must be less than 82");
-        }
-        let mut output = [0u8; 82];
-        for (out_byte, k) in output.iter_mut().zip(key.iter()) {
-            *out_byte = *k;
-        }
+        use std::io::Write;
+        let mut builder = SlotKeyBuilder::with_prefix(Prefix::new(0, 0));
+        builder.write_all(key).unwrap();
         Self {
-           key: output,
+            key: builder.into(),
         }
+        // if key.len() > 82 {
+        //     panic!("Key length must be less than 82");
+        // }
+        // let mut output = [0u8; 82];
+        // for (out_byte, k) in output.iter_mut().zip(key.iter()) {
+        //     *out_byte = *k;
+        // }
+        // Self {
+        //    key: output,
+        // }
     }
 
     /// Creates a new [`SlotKey`] from a prefix.
     pub fn singleton(prefix: &Prefix) -> Self {
-        let mut encoded = [0u8; 82];
-        encoded[0] = prefix.module;
-        encoded[1] = prefix.item;
+        let builder = SlotKeyBuilder::with_prefix(*prefix).into();
         Self {
-            key: encoded,
-           
+            key: builder,
         }
     }
 }
@@ -642,8 +835,7 @@ pub(crate) fn open_merkle_proof<S: MerkleProofSpec>(
         proof,
         namespace,
     } = state_proof;
-    let key_bytes = borsh::to_vec(&key).unwrap();
-    let key_hash = KeyHash::with::<S::Hasher>(key_bytes.as_slice());
+    let key_hash = KeyHash::with::<S::Hasher>(key.as_ref());
 
     // The proof leaves contain hash(combine(val_hash, val_len)).
     // The outer hashing is handled by the verify method, so we need to pass combine(val_hash, val_len).
