@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use super::{Prefix, StateItemInfo};
-use crate::{DispatchCall, ModuleId, ModuleInfo};
+use super::{StateItemInfo};
+use crate::{ModuleId, ModuleInfo};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "snake_case", untagged)]
