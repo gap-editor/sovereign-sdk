@@ -12,7 +12,7 @@ where
     V: serde::Serialize,
 {
     fn encode(&self, value: &V, writer: &mut impl Write) {
-        bcs::serialize_into( writer, value).expect("Failed to serialize value")
+        bcs::serialize_into(writer, value).expect("Failed to serialize value");
     }
 }
 
@@ -44,12 +44,12 @@ impl StateCodec for BcsCodec {
 // [`serde::Serializer::collect_seq`] under the hood.
 impl<T: serde::Serialize> EncodeLike<[T], Vec<T>> for BcsCodec {
     fn encode_like(&self, borrowed: &[T], writer: &mut impl Write) {
-        bcs::serialize_into(writer, borrowed).expect("Bcs serialization to vec is infallible")
+        bcs::serialize_into(writer, borrowed).expect("Bcs serialization to vec is infallible");
     }
 }
 
 impl EncodeLike<[u8], HexString> for BcsCodec {
     fn encode_like(&self, borrowed: &[u8], writer: &mut impl Write) {
-        bcs::serialize_into(writer, borrowed).expect("Bcs serialization to vec is infallible")
+        bcs::serialize_into(writer, borrowed).expect("Bcs serialization to vec is infallible");
     }
 }

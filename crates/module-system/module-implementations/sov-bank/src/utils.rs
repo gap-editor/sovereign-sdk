@@ -288,13 +288,13 @@ mod encode_like {
 
     impl<S: Spec> EncodeLike<TokenHolderRef<'_, S>, TokenHolder<S>> for BcsCodec {
         fn encode_like(&self, borrowed: &TokenHolderRef<'_, S>, writer: &mut impl Write) {
-            self.encode(borrowed, writer)
+            self.encode(borrowed, writer);
         }
     }
 
     impl<S: Spec> EncodeLike<TokenHolderRef<'_, S>, TokenHolder<S>> for BorshCodec {
         fn encode_like(&self, borrowed: &TokenHolderRef<'_, S>, writer: &mut impl Write) {
-            self.encode(borrowed, writer)
+            self.encode(borrowed, writer);
         }
     }
 }

@@ -156,9 +156,9 @@ where
         let len = self.len(state)?;
 
         Ok(if index < len {
-            self.elems().get(&index, state)?.ok_or_else(|| {
-                StateVecError::MissingValue(self.prefix().clone(), index, PhantomData)
-            })
+            self.elems()
+                .get(&index, state)?
+                .ok_or_else(|| StateVecError::MissingValue(*self.prefix(), index, PhantomData))
         } else {
             Err(StateVecError::IndexOutOfBounds(index))
         })

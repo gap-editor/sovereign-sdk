@@ -33,9 +33,9 @@ impl EncodeLike<(&Address, &U256), AccountStorageKey> for BcsCodec {
 fn test_account_storage_key_encode_like() {
     use sov_state::StateItemEncoder;
     let key = AccountStorageKey(Address::from_slice(&[1; 20]), U256::from(0));
-    let encoded_like = BcsCodec.encode_like_vec(&(&key.0, &key.1));
+    let encoded_like = BcsCodec.encode_to_vec_like(&(&key.0, &key.1));
 
-    assert_eq!(&BcsCodec.encode_vec(&key), &encoded_like);
+    assert_eq!(&BcsCodec.encode_to_vec(&key), &encoded_like);
 }
 
 #[test]

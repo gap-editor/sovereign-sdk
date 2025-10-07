@@ -361,8 +361,8 @@ mod tests {
     fn test_balance_key_encode_like() {
         let key: BalanceKey<String> = BalanceKey("Address/".to_string(), TokenId::from([1u8; 32]));
         assert_eq!(
-            BorshCodec.encode_like_vec(&(key.0.clone(), &key.1)),
-            BorshCodec.encode_vec(&key)
+            BorshCodec.encode_to_vec_like(&(key.0.clone(), &key.1)),
+            BorshCodec.encode_to_vec(&key)
         );
     }
 

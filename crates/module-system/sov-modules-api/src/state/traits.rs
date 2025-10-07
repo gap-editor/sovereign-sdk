@@ -396,7 +396,6 @@ impl<T: ProvableStateReader<User> + StateMetricsProvider> StateReader<User> for 
     blanket_impl_metered_state_reader!(User);
 }
 
-
 fn state_access_metric_read(_key: &SlotKey) -> StateAccessMetric {
     StateAccessMetric::new_read(Default::default(), None)
 }

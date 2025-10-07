@@ -88,7 +88,7 @@ impl StateDb {
         }
     }
 
-    fn materialize_preimages_namespace<'a, N: Namespace>(
+    fn materialize_preimages_namespace<N: Namespace>(
         items: impl IntoIterator<Item = (KeyHash, impl AsRef<[u8]>)>,
     ) -> anyhow::Result<SchemaBatch> {
         let mut batch = SchemaBatch::new();
@@ -102,7 +102,7 @@ impl StateDb {
     /// Materializes the preimage of a hashed key into the returned [`SchemaBatch`].
     /// Note that the preimage is not checked for correctness,
     /// since the [`StateDb`] is unaware of the hash function used by the JMT.
-    pub fn materialize_preimages<'a>(
+    pub fn materialize_preimages(
         kernel_items: impl IntoIterator<Item = (KeyHash, impl AsRef<[u8]>)>,
         user_items: impl IntoIterator<Item = (KeyHash, impl AsRef<[u8]>)>,
     ) -> anyhow::Result<SchemaBatch> {

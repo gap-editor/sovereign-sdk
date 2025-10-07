@@ -122,8 +122,8 @@ where
     }
 
     fn read_value_unbound<N: CompileTimeNamespace>(&self, key: &SlotKey) -> Option<SlotValue> {
-            // TODO: Skip the useless to_vec here. Needs schema/rockbound changes
-            let key = key.as_ref().to_vec();
+        // TODO: Skip the useless to_vec here. Needs schema/rockbound changes
+        let key = key.as_ref().to_vec();
         match N::NAMESPACE {
             Namespace::User => self
                 .historical_state
@@ -154,8 +154,8 @@ where
             return Ok(None);
         };
         let _span = tracing::debug_span!("version", ?resolved_version, passed = ?version).entered();
-            // TODO: Skip the useless to_vec here. Needs schema/rockbound changes
-            let key_vec = key.as_ref().to_vec();
+        // TODO: Skip the useless to_vec here. Needs schema/rockbound changes
+        let key_vec = key.as_ref().to_vec();
         let val = match N::NAMESPACE {
             Namespace::User => {
                 let historical_value = if let Some(version) = resolved_version {
@@ -220,7 +220,7 @@ where
             Namespace::Accessory => self
                 .accessory
                 .get_value_option(
-                    &key_vec,// TODO: Skip the useless to_vec here. Needs schema/rockbound changes
+                    &key_vec, // TODO: Skip the useless to_vec here. Needs schema/rockbound changes
                     resolved_version.unwrap_or(self.latest_version()),
                 )
                 .expect("Unable to read from AccessoryDb"),
@@ -568,7 +568,12 @@ where
                 .ordered_writes
                 .iter()
                 // TODO: Skip the useless to_vec here. Needs schema/rockbound changes
-                .map(|(k, v_opt)| (k.as_ref().to_vec(), v_opt.as_ref().map(|v| v.value().to_vec()))),
+                .map(|(k, v_opt)| {
+                    (
+                        k.as_ref().to_vec(),
+                        v_opt.as_ref().map(|v| v.value().to_vec()),
+                    )
+                }),
             next_version,
         )
         .expect("accessory db materialization must succeed");

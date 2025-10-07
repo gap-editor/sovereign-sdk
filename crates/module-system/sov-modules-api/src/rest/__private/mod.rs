@@ -4,7 +4,6 @@ mod types;
 
 use sov_rest_utils::ApiResult;
 use sov_state::Namespace;
-use sov_state::Prefix;
 
 use self::state::StateItemKind;
 use self::types::ModuleObject;

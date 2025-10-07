@@ -17,10 +17,10 @@ where
     V: BorshSerialize + ?Sized,
 {
     fn encode(&self, value: &V, writer: &mut impl Write) {
-        borsh::to_writer(writer, value).expect("Failed to serialize value")
+        borsh::to_writer(writer, value).expect("Failed to serialize value");
     }
 
-    fn encode_vec(&self, value: &V) -> Vec<u8> {
+    fn encode_to_vec(&self, value: &V) -> Vec<u8> {
         borsh::to_vec(value).expect("Failed to serialize value")
     }
 }
@@ -56,7 +56,7 @@ where
     T: BorshSerialize,
 {
     fn encode_like(&self, borrowed: &[T], writer: &mut impl Write) {
-        borsh::to_writer(writer, borrowed).expect("Borsh serialization to vec is infallible")
+        borsh::to_writer(writer, borrowed).expect("Borsh serialization to vec is infallible");
     }
 }
 
@@ -64,6 +64,6 @@ where
 // exactly like `Vec<u8>`, we can just reuse the standard impl
 impl EncodeLike<[u8], HexString> for BorshCodec {
     fn encode_like(&self, borrowed: &[u8], writer: &mut impl Write) {
-        borsh::to_writer(writer, borrowed).expect("Borsh serialization to vec is infallible")
+        borsh::to_writer(writer, borrowed).expect("Borsh serialization to vec is infallible");
     }
 }

@@ -259,10 +259,12 @@ impl<S: MerkleProofSpec> ProverStorage<S> {
         let next_version = self.db.get_next_version();
         // TODO: Skip the useless to_vec here. Needs schema/rockbound changes
         AccessoryDb::materialize_values(
-            accessory_writes
-                .ordered_writes
-                .iter()
-                .map(|(k, v_opt)| (k.as_ref().to_vec(), v_opt.as_ref().map(|v| v.value().to_vec()))),
+            accessory_writes.ordered_writes.iter().map(|(k, v_opt)| {
+                (
+                    k.as_ref().to_vec(),
+                    v_opt.as_ref().map(|v| v.value().to_vec()),
+                )
+            }),
             next_version,
         )
         .expect("accessory db materialization must succeed")

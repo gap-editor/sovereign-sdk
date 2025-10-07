@@ -15,13 +15,19 @@ pub fn derive(tokens: &DeriveInput) -> syn::Result<TokenStream> {
     let state_fields = ParsedStateField::parse(&module_struct_def, &rest_api_input);
 
     let state_item_exprs = state_fields
-        .iter().enumerate()
+        .iter()
+        .enumerate()
         .map(|(i, f)| {
             let ident = &f.ident;
             let ty = &f.ty;
             let state_name = format!("{ident}");
             let description = description_code(&f.rest_api_field.doc, &f.rest_api_field.attrs)?;
-            let item_discriminant: u8 = i.try_into().map_err(|_| syn::Error::new(proc_macro2::Span::call_site(), "Modules may not have more than 255 fields"))?;
+            let item_discriminant: u8 = i.try_into().map_err(|_| {
+                syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    "Modules may not have more than 255 fields",
+                )
+            })?;
 
             Ok(quote! {
                 StateItemInfo {

@@ -40,7 +40,8 @@ fn create_storage_manager(
                 ordered_writes: initial_values
                     .into_iter()
                     .map(|(k, v)| {
-                        let state_value = StateValue::<u64>::with_codec(Prefix::new(k[0], 0), BorshCodec);
+                        let state_value =
+                            StateValue::<u64>::with_codec(Prefix::new(k[0], 0), BorshCodec);
                         (state_value.slot_key(), Some(state_value.slot_value(&v)))
                     })
                     .collect(),
@@ -94,8 +95,7 @@ fn test_values<S: Spec>(state: &mut StateCheckpoint<S>) {
     // Test overriding empty value.
     let mut metric = StateAccessMetric::new_size(std::sync::Arc::new(vec![]), None);
     {
-        let mut state_value =
-            StateValue::<u64>::with_codec(Prefix::new(VAL_ID_1, 0), BorshCodec);
+        let mut state_value = StateValue::<u64>::with_codec(Prefix::new(VAL_ID_1, 0), BorshCodec);
         let is_cached = state.is_value_cached(NAMESPACE, &state_value.slot_key());
         assert_eq!(is_cached, IsValueCached::No);
 

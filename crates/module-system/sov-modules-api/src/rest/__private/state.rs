@@ -11,11 +11,11 @@
 //!    state items are marked with `include`. See
 //!    [`StateItemRestApiExists`].se std::marker::PhantomData;
 
+use sov_state::Prefix;
 use std::convert::Infallible;
 use std::fmt::Display;
 use std::marker::PhantomData;
 use std::str::FromStr;
-use sov_state::Prefix;
 
 use axum::extract::{FromRequestParts, State};
 use axum::routing::get;
@@ -114,11 +114,11 @@ where
         State(state): State<Self>,
         mut accessor: ApiStateAccessor<M::Spec>,
     ) -> ApiResult<StateItemContents<T, T>> {
-        let prefix = Prefix::new(state.module_discriminant, state.state_item_info.item_discriminant);
-        let state_value = NamespacedStateValue::<N, T, Codec>::with_codec(
-            prefix,
-            Codec::default(),
+        let prefix = Prefix::new(
+            state.module_discriminant,
+            state.state_item_info.item_discriminant,
         );
+        let state_value = NamespacedStateValue::<N, T, Codec>::with_codec(prefix, Codec::default());
 
         let value = state_value.get(&mut accessor).unwrap_infallible();
         Ok(StateItemContents::Value { value }.into())
@@ -152,7 +152,10 @@ where
     Codec::ValueCodec: StateItemCodec<T> + StateItemCodec<SlotNumber> + StateItemCodec<u64>,
 {
     fn vec(&self) -> NamespacedStateVec<N, T, Codec> {
-        let prefix = Prefix::new(self.module_discriminant, self.state_item_info.item_discriminant);
+        let prefix = Prefix::new(
+            self.module_discriminant,
+            self.state_item_info.item_discriminant,
+        );
         NamespacedStateVec::with_codec(prefix, Codec::default())
     }
 
@@ -235,7 +238,10 @@ where
         Path(key): Path<K>,
     ) -> ApiResult<StateItemContents<K, V>> {
         let state_map = NamespacedStateMap::<N, K, V, Codec>::with_codec(
-            Prefix::new(state.module_discriminant, state.state_item_info.item_discriminant),
+            Prefix::new(
+                state.module_discriminant,
+                state.state_item_info.item_discriminant,
+            ),
             Codec::default(),
         );
 
@@ -262,11 +268,11 @@ where
         State(state): State<Self>,
         mut accessor: ApiStateAccessor<M::Spec>,
     ) -> ApiResult<StateItemContents<V, V>> {
-        let prefix = Prefix::new(state.module_discriminant, state.state_item_info.item_discriminant);
-        let state_map = VersionedStateValue::<V, Codec>::with_codec(
-            prefix,
-            Codec::default(),
+        let prefix = Prefix::new(
+            state.module_discriminant,
+            state.state_item_info.item_discriminant,
         );
+        let state_map = VersionedStateValue::<V, Codec>::with_codec(prefix, Codec::default());
 
         let value = state_map.get_current(&mut accessor).unwrap_infallible();
         Ok(StateItemContents::Value { value }.into())
@@ -309,7 +315,7 @@ where
     }
 }
 
-impl<N, M,  T, Codec> StateItemRestApiExists
+impl<N, M, T, Codec> StateItemRestApiExists
     for StateItemRestApiImpl<M, NamespacedStateValue<N, T, Codec>>
 where
     M: ModuleInfo,

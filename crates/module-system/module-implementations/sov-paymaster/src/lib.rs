@@ -298,7 +298,7 @@ impl<S: Spec> Paymaster<S> {
 #[test]
 fn test_policy_key_encode_like() {
     let key = PolicyKey::with(Payer(1), 2);
-    let encoded_like = BorshCodec.encode_like_vec(&(Payer(&key.payer), &key.payee));
+    let encoded_like = BorshCodec.encode_to_vec_like(&(Payer(&key.payer), &key.payee));
 
     assert_eq!(&borsh::to_vec(&key).unwrap(), &encoded_like);
 }

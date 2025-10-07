@@ -4,7 +4,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "native")]
-use sov_modules_api::rest::{HasRestApi};
+use sov_modules_api::rest::HasRestApi;
 use sov_modules_api::{
     Base58Address, Context, DaSpec, GenesisState, HexHash, HexString, Module, ModuleId, ModuleInfo,
     ModuleRestApi, Spec, StateMap, StateReader, StateValue, TxState,

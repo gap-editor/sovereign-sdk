@@ -20,8 +20,7 @@ pub(crate) fn derive_module_info(input: &DeriveInput) -> syn::Result<proc_macro:
 
         #impl_new
     };
-    Ok(out
-    .into())
+    Ok(out.into())
 }
 
 // Creates a prefix function for each field of the underlying structure.
@@ -50,8 +49,8 @@ fn impl_prefix_functions(struct_def: &StructDef) -> proc_macro2::TokenStream {
 
 // Implements the `ModuleInfo` trait.
 fn impl_module_info(struct_def: &StructDef) -> syn::Result<proc_macro2::TokenStream> {
-    use convert_case::Casing;
     use convert_case::Case;
+    use convert_case::Casing;
     let module_id = struct_def.module_id();
 
     let StructDef {
@@ -77,14 +76,22 @@ fn impl_module_info(struct_def: &StructDef) -> syn::Result<proc_macro2::TokenStr
     let mut state_field_id = 0;
     for field in fields.iter() {
         if state_field_id > 127 {
-            return Err(syn::Error::new(Span::call_site(), "Modules may not have more than 127 state fields"));
+            return Err(syn::Error::new(
+                Span::call_site(),
+                "Modules may not have more than 127 state fields",
+            ));
         }
         match &field.attr {
             ModuleFieldAttribute::State { codec_builder } => {
                 impl_self_init.push(make_init_state(
                     field,
                     &codec_builder.clone().unwrap_or_else(default_codec_builder),
-                    state_field_id.try_into().map_err(|_| syn::Error::new(Span::call_site(), "Modules may not have more than 255 fields"))?,
+                    state_field_id.try_into().map_err(|_| {
+                        syn::Error::new(
+                            Span::call_site(),
+                            "Modules may not have more than 255 fields",
+                        )
+                    })?,
                 )?);
                 state_field_id += 1;
                 impl_self_body.push(&field.ident);
@@ -113,7 +120,7 @@ fn impl_module_info(struct_def: &StructDef) -> syn::Result<proc_macro2::TokenStr
     let fn_dependencies = make_fn_dependencies(&modules);
     let fn_prefix = make_module_prefix_fn(ident);
     let fn_is_safe_for_sequencer = make_sequencer_safety_fn(sequencer_safety_fn);
-    let fn_discriminant = make_fn_discriminant(&ident);
+    let fn_discriminant = make_fn_discriminant(ident);
 
     Ok(quote::quote! {
         impl #impl_generics ::std::default::Default for #ident #type_generics #where_clause{
@@ -179,10 +186,9 @@ fn make_fn_id(id_ident: &proc_macro2::Ident) -> proc_macro2::TokenStream {
     }
 }
 
-
 fn make_fn_discriminant(ident: &proc_macro2::Ident) -> proc_macro2::TokenStream {
-    use convert_case::Casing;
     use convert_case::Case;
+    use convert_case::Casing;
     let discriminant = ident.to_string().to_case(Case::ScreamingSnake);
     let key = format!("{discriminant}_DISCRIMINANT");
     quote::quote! {

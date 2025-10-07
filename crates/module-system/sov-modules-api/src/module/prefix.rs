@@ -1,6 +1,5 @@
 use sha2::Digest;
 use sov_rollup_interface::zk::CryptoSpec;
-use sov_state::Prefix;
 
 use crate::Spec;
 
@@ -18,7 +17,11 @@ pub struct ModulePrefix {
 impl std::fmt::Display for ModulePrefix {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(storage_name) = self.storage_name {
-            write!(f, "{}/{}/{}", self.module_path, self.module_name, storage_name)
+            write!(
+                f,
+                "{}/{}/{}",
+                self.module_path, self.module_name, storage_name
+            )
         } else {
             write!(f, "{}/{}", self.module_path, self.module_name)
         }

@@ -4,7 +4,6 @@ use core::{fmt, str};
 
 use sov_rollup_interface::sov_universal_wallet::UniversalWallet;
 
-
 /// A prefix prepended to each key before insertion and retrieval from the storage.
 ///
 /// When interacting with state containers, you will usually use the same working set instance to
@@ -56,7 +55,6 @@ impl Prefix {
         Self { module, item }
     }
 }
-
 
 impl fmt::Display for Prefix {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

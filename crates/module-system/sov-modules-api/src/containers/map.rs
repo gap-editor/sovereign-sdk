@@ -281,7 +281,7 @@ where
     {
         Ok(self.get(key, state)?.ok_or_else(|| {
             StateMapError::MissingValue(
-                self.prefix().clone(),
+                *self.prefix(),
                 SlotKey::new(self.prefix(), key, self.codec().key_codec()),
                 PhantomData,
             )
@@ -322,7 +322,7 @@ where
     {
         Ok(self.remove(key, state)?.ok_or_else(|| {
             StateMapError::MissingValue(
-                self.prefix().clone(),
+                *self.prefix(),
                 SlotKey::new(self.prefix(), key, self.codec().key_codec()),
                 PhantomData,
             )

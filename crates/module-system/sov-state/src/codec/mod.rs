@@ -25,7 +25,7 @@ pub trait StateItemEncoder<V: ?Sized> {
     ///
     /// This method **must** not panic as all instances of the value type are
     /// supposed to be serializable.
-    fn encode_vec(&self, value: &V) -> Vec<u8> {
+    fn encode_to_vec(&self, value: &V) -> Vec<u8> {
         let mut out = vec![];
         self.encode(value, &mut out);
         out
@@ -95,7 +95,7 @@ pub trait EncodeLike<Ref: ?Sized, Target>: StateItemEncoder<Target> {
     fn encode_like(&self, borrowed: &Ref, writer: &mut impl Write);
 
     /// Encodes a reference to `Ref` as if it were a reference to `Target` and returns a `Vec<u8>`.
-    fn encode_like_vec(&self, borrowed: &Ref) -> Vec<u8> {
+    fn encode_to_vec_like(&self, borrowed: &Ref) -> Vec<u8> {
         let mut writer = vec![];
         self.encode_like(borrowed, &mut writer);
         writer
@@ -108,7 +108,7 @@ where
     C: StateItemCodec<T>,
 {
     fn encode_like(&self, borrowed: &T, writer: &mut impl Write) {
-        self.encode(borrowed, writer)
+        self.encode(borrowed, writer);
     }
 }
 #[cfg(test)]
@@ -128,11 +128,8 @@ mod tests {
         let codec = BorshCodec;
         let mut left = vec![];
         let mut right = vec![];
-            <BorshCodec as EncodeLike<[i32], Vec<i32>>>::encode_like(&codec, &vec[..], &mut left);
-            codec.encode(&vec, &mut right);
-        assert_eq!(
-            left,
-            right
-        );
+        <BorshCodec as EncodeLike<[i32], Vec<i32>>>::encode_like(&codec, &vec[..], &mut left);
+        codec.encode(&vec, &mut right);
+        assert_eq!(left, right);
     }
 }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use super::{StateItemInfo};
+use super::StateItemInfo;
 use crate::{ModuleId, ModuleInfo};
 
 #[derive(Debug, Clone, Serialize)]
