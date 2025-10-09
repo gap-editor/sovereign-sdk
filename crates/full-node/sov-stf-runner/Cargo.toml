@@ -51,6 +51,7 @@ proptest = { workspace = true }
 jsonrpsee = { workspace = true, features = ["client", "ws-client"] }
 rand = { workspace = true, features = ["small_rng"] }
 tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }
+tokio-tungstenite = { workspace = true }
 
 sov-sequencer = { workspace = true }
 sov-state = { workspace = true, features = ["native"] }
